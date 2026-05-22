@@ -11,6 +11,7 @@ import customtkinter as ctk
 from PIL import Image, ImageDraw, ImageTk
 
 import config
+import settings as _settings_mod
 from media import get_media_info, MediaInfo
 from uploader import upload_image
 
@@ -29,14 +30,13 @@ GREEN   = "#a6e3a1"
 YELLOW  = "#f9e2af"
 
 
-def _format_tweet(info: MediaInfo) -> str:
-    if info.artist:
-        return config.TWEET_TEMPLATE.format(
-            title=info.title, artist=info.artist, album=info.album,
-        )
-    return config.TWEET_TEMPLATE_NO_ARTIST.format(
-        title=info.title, album=info.album,
-    )
+def _format_tweet(info: MediaInfo, tmpl: str, tmpl_no_artist: str) -> str:
+    try:
+        if info.artist:
+            return tmpl.format(title=info.title, artist=info.artist, album=info.album)
+        return tmpl_no_artist.format(title=info.title, album=info.album)
+    except (KeyError, ValueError):
+        return f"{info.title} - {info.artist}"
 
 
 def _copy_text(text: str) -> None:
@@ -98,6 +98,7 @@ class NowPlayingApp:
         self._uploaded_url: Optional[str] = None
         self._fetching = False
         self._after_id: Optional[str] = None
+        self._settings = _settings_mod.load()
 
         ctk.set_appearance_mode("dark")
         ctk.set_default_color_theme("blue")
@@ -142,7 +143,15 @@ class NowPlayingApp:
             text_color=ACCENT,
         ).pack(side="left")
 
-        # 右端から pack: ↺ → switch → 🖼 → 📋 → 𝕏
+        # 右端から pack: ⚙ → ↺ → switch → 🖼 → 📋 → 𝕏
+        self._btn_settings = ctk.CTkButton(
+            hdr, text="⚙", width=24, height=24,
+            fg_color="transparent", hover_color=OVERLAY,
+            text_color=MUTED, font=ctk.CTkFont(size=14),
+            corner_radius=6, command=self._open_settings,
+        )
+        self._btn_settings.pack(side="right", padx=(0, 0))
+
         self._btn_refresh = ctk.CTkButton(
             hdr, text="↺", width=24, height=24,
             fg_color="transparent", hover_color=OVERLAY,
@@ -333,7 +342,11 @@ class NowPlayingApp:
             self._set_content_buttons(False)
             return
 
-        self._tweet_text = _format_tweet(info)
+        self._tweet_text = _format_tweet(
+            info,
+            self._settings["tweet_template"],
+            self._settings["tweet_template_no_artist"],
+        )
         self._lbl_title.configure(text=info.title, text_color=TEXT)
         self._lbl_artist.configure(text=info.artist)
         self._lbl_album.configure(text=info.album)
@@ -357,9 +370,92 @@ class NowPlayingApp:
         self._btn_text.configure(state=s)
         self._btn_image.configure(state=s)
 
+    def _open_settings(self) -> None:
+        SettingsWindow(self._root, self._settings, self._on_settings_saved)
+
+    def _on_settings_saved(self, new_settings: dict) -> None:
+        self._settings = new_settings
+        # 設定変更後に現在の曲テキストを即再生成
+        if self._info:
+            self._tweet_text = _format_tweet(
+                self._info,
+                self._settings["tweet_template"],
+                self._settings["tweet_template_no_artist"],
+            )
+
     def _set_status(self, msg: str, color: str = GREEN) -> None:
         self._status_var.set(msg)
         self._lbl_status.configure(text_color=color)
+
+
+class SettingsWindow(ctk.CTkToplevel):
+    def __init__(self, parent, current: dict, on_save) -> None:
+        super().__init__(parent)
+        self.title("設定")
+        self.configure(fg_color=BG)
+        self.resizable(False, False)
+        self.grab_set()
+        self._on_save = on_save
+
+        outer = ctk.CTkFrame(self, fg_color="transparent")
+        outer.pack(fill="both", expand=True, padx=20, pady=16)
+
+        def section(label: str) -> None:
+            ctk.CTkLabel(
+                outer, text=label, anchor="w",
+                font=ctk.CTkFont(FONT, 11, "bold"), text_color=ACCENT,
+            ).pack(fill="x", pady=(10, 2))
+
+        def hint(text: str) -> None:
+            ctk.CTkLabel(
+                outer, text=text, anchor="w",
+                font=ctk.CTkFont(FONT, 10), text_color=MUTED,
+            ).pack(fill="x")
+
+        def entry(default: str) -> ctk.CTkEntry:
+            e = ctk.CTkEntry(
+                outer, width=380, height=32,
+                fg_color=SURFACE, border_color=OVERLAY, border_width=1,
+                text_color=TEXT, font=ctk.CTkFont(FONT, 12),
+            )
+            e.insert(0, default)
+            e.pack(fill="x", pady=(4, 0))
+            return e
+
+        hint("変数: {title}  {artist}  {album}")
+        section("アーティストあり")
+        self._tmpl = entry(current["tweet_template"])
+        section("アーティストなし")
+        self._tmpl_no = entry(current["tweet_template_no_artist"])
+
+        btn_row = ctk.CTkFrame(outer, fg_color="transparent")
+        btn_row.pack(fill="x", pady=(16, 0))
+
+        ctk.CTkButton(
+            btn_row, text="キャンセル", width=100, height=30,
+            fg_color=SURFACE, hover_color=OVERLAY, text_color=SUBTEXT,
+            font=ctk.CTkFont(FONT, 11), corner_radius=8,
+            command=self.destroy,
+        ).pack(side="right", padx=(6, 0))
+
+        ctk.CTkButton(
+            btn_row, text="保存", width=100, height=30,
+            fg_color=ACCENT, hover_color="#b48df0", text_color=BG,
+            font=ctk.CTkFont(FONT, 11, "bold"), corner_radius=8,
+            command=self._save,
+        ).pack(side="right")
+
+        self.update_idletasks()
+        self.geometry(f"{self.winfo_reqwidth()}x{self.winfo_reqheight()}")
+
+    def _save(self) -> None:
+        new = {
+            "tweet_template": self._tmpl.get().strip() or _settings_mod.DEFAULTS["tweet_template"],
+            "tweet_template_no_artist": self._tmpl_no.get().strip() or _settings_mod.DEFAULTS["tweet_template_no_artist"],
+        }
+        _settings_mod.save(new)
+        self._on_save(new)
+        self.destroy()
 
 
 def run_gui() -> None:
