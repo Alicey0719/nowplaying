@@ -69,9 +69,14 @@ async def _fetch_media_info() -> Optional[MediaInfo]:
         except Exception:
             pass
 
+    # Apple Music は artist フィールドに "artist — album - type" を詰めてくることがある
+    artist = props.artist or ""
+    if " — " in artist:
+        artist = artist.split(" — ")[0].strip()
+
     return MediaInfo(
         title=props.title,
-        artist=props.artist or "",
+        artist=artist,
         album=props.album_title or "",
         artwork=artwork,
     )
