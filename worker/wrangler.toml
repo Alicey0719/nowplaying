@@ -5,3 +5,6 @@ compatibility_date = "2026-05-22"
 routes = [
   { pattern = "nowplayimg.alicey.dev/catbox_ximg/*", zone_name = "alicey.dev" }
 ]
+
+[observability]
+enabled = true
