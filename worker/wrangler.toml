@@ -1,6 +1,6 @@
-name = "catbox-ximg"
+name = 'nowplayimg'
 main = "worker.js"
-compatibility_date = "2024-01-01"
+compatibility_date = "2026-05-23"
 
 routes = [
   { pattern = "nowplayimg.alicey.dev/catbox_ximg/*", zone_name = "alicey.dev" }
