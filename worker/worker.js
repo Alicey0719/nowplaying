@@ -39,7 +39,7 @@ export default {
       const q = artist ? `${title} ${artist}` : title
       pageTitle = artist ? `${title} — ${artist}` : title
       pageDesc = "LINE MUSICで聴く"
-      humanRedirect = `https://music.line.me/webapp/search?q=${encodeURIComponent(q)}`
+      humanRedirect = `https://music.line.me/webapp/search?query=${encodeURIComponent(q)}`
     }
 
     // 全リクエストに HTML を返す
