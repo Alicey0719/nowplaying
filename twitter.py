@@ -112,13 +112,8 @@ class NowPlayingApp:
         # タイトルバー・Alt+Tab アイコン
         try:
             import ctypes as _ct
-            if getattr(sys, "frozen", False):
-                # exeビルド: PyInstaller が埋め込んだリソース(ID=1)から直接ロード
-                _hinst = _ct.windll.kernel32.GetModuleHandleW(None)
-                _hicon = _ct.windll.user32.LoadImageW(_hinst, 1, 1, 0, 0, 0x40)
-            else:
-                _ico = Path(__file__).parent / "_icon.ico"
-                _hicon = _ct.windll.user32.LoadImageW(None, str(_ico), 1, 0, 0, 0x50)
+            _ico = Path(getattr(sys, "_MEIPASS", Path(__file__).parent)) / "_icon.ico"
+            _hicon = _ct.windll.user32.LoadImageW(None, str(_ico), 1, 0, 0, 0x50)
             if _hicon:
                 def _apply_icon(hicon=_hicon):
                     child = self._root.winfo_id()
