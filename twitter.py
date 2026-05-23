@@ -1,4 +1,5 @@
 """Now Playing → X 投稿補助 GUI"""
+import sys
 import threading
 import tkinter as tk
 from io import BytesIO
@@ -110,7 +111,8 @@ class NowPlayingApp:
 
         # アイコン
         try:
-            icon_path = Path(__file__).parent / "_icon.png"
+            _base = Path(sys.executable).parent if getattr(sys, "frozen", False) else Path(__file__).parent
+            icon_path = _base / "_icon.png"
             if not icon_path.exists():
                 _make_icon(64).save(icon_path)
             self._root.iconphoto(True, ImageTk.PhotoImage(Image.open(icon_path)))

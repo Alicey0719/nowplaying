@@ -1,10 +1,22 @@
 """設定の読み書き（settings.json に永続化）"""
 import json
+import os
+import sys
 from pathlib import Path
 
 import config
 
-_FILE = Path(__file__).parent / "settings.json"
+
+def _settings_file() -> Path:
+    if getattr(sys, "frozen", False):
+        # パッケージ版: %APPDATA%\NowPlaying\settings.json
+        d = Path(os.environ.get("APPDATA", Path.home())) / "NowPlaying"
+        d.mkdir(exist_ok=True)
+        return d / "settings.json"
+    return Path(__file__).parent / "settings.json"
+
+
+_FILE = _settings_file()
 
 DEFAULTS: dict = {
     "tweet_template": config.TWEET_TEMPLATE,
