@@ -6,6 +6,9 @@ on:
       - "v*"
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: windows-latest
@@ -21,6 +24,14 @@ jobs:
         run: |
           pip install -r requirements.txt
           pip install pyinstaller
+
+      - name: Set version
+        env:
+          TAG: ${{ github.ref_name }}
+          SHA: ${{ github.sha }}
+        run: |
+          $hash = $env:SHA.Substring(0, 7)
+          Set-Content -Path version.py -Value "__version__ = `"$env:TAG ($hash)`""
 
       - name: Build
         run: pyinstaller nowplay.spec --clean --noconfirm

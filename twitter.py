@@ -447,6 +447,15 @@ class SettingsWindow(ctk.CTkToplevel):
             command=self._save,
         ).pack(side="right")
 
+        try:
+            from version import __version__
+        except ImportError:
+            __version__ = "dev"
+        ctk.CTkLabel(
+            outer, text=__version__, anchor="e",
+            font=ctk.CTkFont(FONT, 9), text_color=MUTED,
+        ).pack(fill="x", pady=(10, 0))
+
         self.update_idletasks()
         self.geometry(f"{self.winfo_reqwidth()}x{self.winfo_reqheight()}")
 
