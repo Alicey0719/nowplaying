@@ -109,14 +109,19 @@ class NowPlayingApp:
         self._root.resizable(True, True)
         self._root.configure(fg_color=BG)
 
-        # アイコン
+        # タイトルバー・Alt+Tab アイコン (Win32 API、タスクバーはexeビルド時のみ有効)
         try:
-            _res = Path(getattr(sys, "_MEIPASS", Path(__file__).parent))
-            _img = Image.open(_res / "icon_source.png").convert("RGBA")
-            bbox = _img.getbbox()
-            _img = _img.crop(bbox)
-            _img.thumbnail((256, 256), Image.LANCZOS)
-            self._root.iconphoto(True, ImageTk.PhotoImage(_img))
+            _ico = Path(getattr(sys, "_MEIPASS", Path(__file__).parent)) / "_icon.ico"
+            if _ico.exists():
+                import ctypes as _ct
+                _hicon = _ct.windll.user32.LoadImageW(None, str(_ico), 1, 0, 0, 0x50)
+                def _apply_icon(hicon=_hicon):
+                    child = self._root.winfo_id()
+                    hwnd = _ct.windll.user32.GetParent(child) or child
+                    _ct.windll.user32.SendMessageW(hwnd, 0x80, 1, hicon)
+                    _ct.windll.user32.SendMessageW(hwnd, 0x80, 0, hicon)
+                _apply_icon()
+                self._root.after(200, _apply_icon)
         except Exception:
             pass
 

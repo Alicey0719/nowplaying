@@ -2,7 +2,7 @@ from PyInstaller.utils.hooks import collect_data_files, collect_submodules
 
 block_cipher = None
 
-datas = [*collect_data_files("customtkinter"), ("icon_source.png", ".")]
+datas = collect_data_files("customtkinter")
 
 hiddenimports = [
     *collect_submodules("winrt"),
