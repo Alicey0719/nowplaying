@@ -6,6 +6,14 @@ const MIME = {
   webp: "image/webp",
 }
 
+function esc(s) {
+  return String(s)
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+}
+
 export default {
   async fetch(request) {
     const url = new URL(request.url)
@@ -20,19 +28,35 @@ export default {
     const imgUrl = `https://files.catbox.moe/${file}`
     const mime = MIME[ext] ?? "image/jpeg"
 
+    const title = url.searchParams.get("title") ?? ""
+    const artist = url.searchParams.get("artist") ?? ""
+
+    // title があれば LINE MUSIC 検索へ、なければ画像へ（後方互換）
+    let humanRedirect = imgUrl
+    let pageTitle = "Now Playing"
+    let pageDesc = ""
+    if (title) {
+      const q = artist ? `${title} ${artist}` : title
+      pageTitle = artist ? `${title} — ${artist}` : title
+      pageDesc = "LINE MUSICで聴く"
+      humanRedirect = `https://music.line.me/webapp/search?q=${encodeURIComponent(q)}`
+    }
+
     // 全リクエストに HTML を返す
-    // 人間は meta refresh で catbox に即リダイレクト
+    // 人間は meta refresh で即リダイレクト
     // クローラーは redirect を無視して card タグを読む
     const html = `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8">
-  <meta http-equiv="refresh" content="0;url=${imgUrl}">
+  <meta http-equiv="refresh" content="0;url=${humanRedirect}">
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="Now Playing">
+  <meta name="twitter:title" content="${esc(pageTitle)}">
+  <meta name="twitter:description" content="${esc(pageDesc)}">
   <meta name="twitter:image" content="${imgUrl}">
   <meta property="og:type" content="website">
-  <meta property="og:title" content="Now Playing">
+  <meta property="og:title" content="${esc(pageTitle)}">
+  <meta property="og:description" content="${esc(pageDesc)}">
   <meta property="og:url" content="${url.origin}${url.pathname}">
   <meta property="og:image" content="${imgUrl}">
   <meta property="og:image:type" content="${mime}">
