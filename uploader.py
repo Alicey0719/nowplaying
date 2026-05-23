@@ -7,7 +7,7 @@ from typing import Optional
 
 import config
 
-CATBOX_WRAPPER_BASE = "https://hogehoge.alicey.dev/catbox_ximg"
+CATBOX_WRAPPER_BASE = "https://nowplayimg.alicey.dev/catbox_ximg"
 
 
 def upload_image(data: bytes) -> Optional[str]:
