@@ -21,6 +21,7 @@ _FILE = _settings_file()
 DEFAULTS: dict = {
     "tweet_template": config.TWEET_TEMPLATE,
     "tweet_template_no_artist": config.TWEET_TEMPLATE_NO_ARTIST,
+    "browser_path": "",
 }
 
 

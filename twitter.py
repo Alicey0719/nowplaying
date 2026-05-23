@@ -31,6 +31,33 @@ GREEN   = "#a6e3a1"
 YELLOW  = "#f9e2af"
 
 
+def _detect_browsers() -> dict[str, str]:
+    """インストール済みブラウザを検出して {表示名: exeパス} を返す。"""
+    import os
+    candidates = {
+        "Chrome":  [r"%ProgramFiles%\Google\Chrome\Application\chrome.exe",
+                    r"%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe",
+                    r"%LocalAppData%\Google\Chrome\Application\chrome.exe"],
+        "Firefox": [r"%ProgramFiles%\Mozilla Firefox\firefox.exe",
+                    r"%ProgramFiles(x86)%\Mozilla Firefox\firefox.exe"],
+        "Edge":    [r"%ProgramFiles(x86)%\Microsoft\Edge\Application\msedge.exe",
+                    r"%ProgramFiles%\Microsoft\Edge\Application\msedge.exe"],
+        "Brave":   [r"%ProgramFiles%\BraveSoftware\Brave-Browser\Application\brave.exe",
+                    r"%LocalAppData%\BraveSoftware\Brave-Browser\Application\brave.exe"],
+        "Opera":   [r"%AppData%\Opera Software\Opera Stable\opera.exe"],
+        "Vivaldi": [r"%LocalAppData%\Vivaldi\Application\vivaldi.exe"],
+        "Arc":     [r"%LocalAppData%\Programs\Arc\Arc.exe"],
+    }
+    found: dict[str, str] = {}
+    for name, paths in candidates.items():
+        for p in paths:
+            expanded = os.path.expandvars(p)
+            if os.path.exists(expanded):
+                found[name] = expanded
+                break
+    return found
+
+
 def _format_tweet(info: MediaInfo, tmpl: str, tmpl_no_artist: str) -> str:
     try:
         if info.artist:
@@ -275,13 +302,19 @@ class NowPlayingApp:
         else:
             self._uploaded_url = url
         self._set_content_buttons(True)
-        self._launch_browser()
+        self._root.after(1000, self._launch_browser)
 
     def _launch_browser(self) -> None:
+        import subprocess, os
         text = self._tweet_text
         if self._uploaded_url:
             text = f"{text} {self._uploaded_url}"
-        webbrowser.open(f"https://x.com/intent/tweet?text={quote(text)}")
+        url = f"https://x.com/intent/tweet?text={quote(text)}"
+        browser_path = self._settings.get("browser_path", "")
+        if browser_path and os.path.exists(browser_path):
+            subprocess.Popen([browser_path, url])
+        else:
+            webbrowser.open(url)
         self._set_status("ブラウザを開きました ✓", GREEN)
 
     def _do_copy_text(self) -> None:
@@ -430,6 +463,23 @@ class SettingsWindow(ctk.CTkToplevel):
             e.pack(fill="x", pady=(4, 0))
             return e
 
+        # ブラウザ選択
+        section("ブラウザ")
+        browsers = _detect_browsers()
+        _DEFAULT_LABEL = "規定のブラウザ"
+        self._browser_map: dict[str, str] = {_DEFAULT_LABEL: "", **browsers}
+        current_path = current.get("browser_path", "")
+        current_label = next((k for k, v in self._browser_map.items() if v == current_path), _DEFAULT_LABEL)
+        self._browser_var = ctk.StringVar(value=current_label)
+        ctk.CTkOptionMenu(
+            outer, values=list(self._browser_map.keys()),
+            variable=self._browser_var,
+            fg_color=SURFACE, button_color=OVERLAY, button_hover_color=MUTED,
+            text_color=TEXT, font=ctk.CTkFont(FONT, 12),
+            dropdown_fg_color=SURFACE, dropdown_text_color=TEXT,
+            dropdown_hover_color=OVERLAY, width=380, height=32,
+        ).pack(fill="x", pady=(4, 0))
+
         hint("変数: {title}  {artist}  {album}")
         section("アーティストあり")
         self._tmpl = entry(current["tweet_template"])
@@ -469,6 +519,7 @@ class SettingsWindow(ctk.CTkToplevel):
         new = {
             "tweet_template": self._tmpl.get().strip() or _settings_mod.DEFAULTS["tweet_template"],
             "tweet_template_no_artist": self._tmpl_no.get().strip() or _settings_mod.DEFAULTS["tweet_template_no_artist"],
+            "browser_path": self._browser_map.get(self._browser_var.get(), ""),
         }
         _settings_mod.save(new)
         self._on_save(new)
