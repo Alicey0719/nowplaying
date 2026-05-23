@@ -33,11 +33,14 @@ jobs:
           $hash = $env:SHA.Substring(0, 7)
           Set-Content -Path version.py -Value "__version__ = `"$env:TAG ($hash)`""
 
+      - name: Generate icon
+        run: python make_icon.py
+
       - name: Build
         run: pyinstaller nowplay.spec --clean --noconfirm
 
       - name: Zip
-        run: Compress-Archive -Path dist\NowPlaying\* -DestinationPath NowPlaying.zip
+        run: Compress-Archive -Path dist\NowPlaying.exe -DestinationPath NowPlaying.zip
 
       - name: Release
         uses: softprops/action-gh-release@v2

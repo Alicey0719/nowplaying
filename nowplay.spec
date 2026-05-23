@@ -29,22 +29,14 @@ pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 exe = EXE(
     pyz,
     a.scripts,
-    [],
-    exclude_binaries=True,
-    name="NowPlaying",
-    debug=False,
-    strip=False,
-    upx=True,
-    console=False,
-    disable_windowed_traceback=False,
-)
-
-coll = COLLECT(
-    exe,
     a.binaries,
     a.zipfiles,
     a.datas,
-    strip=False,
-    upx=True,
     name="NowPlaying",
+    debug=False,
+    strip=False,
+    upx=False,
+    console=False,
+    disable_windowed_traceback=False,
+    icon="_icon.ico",
 )
