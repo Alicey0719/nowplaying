@@ -6,7 +6,7 @@ from io import BytesIO
 from pathlib import Path
 from typing import Optional
 import webbrowser
-from urllib.parse import quote
+from urllib.parse import quote, urlencode
 
 import customtkinter as ctk
 from PIL import Image, ImageDraw, ImageTk
@@ -308,7 +308,10 @@ class NowPlayingApp:
         import subprocess, os
         text = self._tweet_text
         if self._uploaded_url:
-            text = f"{text} {self._uploaded_url}"
+            img_url = self._uploaded_url
+            if self._info:
+                img_url += "?" + urlencode({"title": self._info.title, "artist": self._info.artist})
+            text = f"{text} {img_url}"
         url = f"https://x.com/intent/tweet?text={quote(text)}"
         browser_path = self._settings.get("browser_path", "")
         if browser_path and os.path.exists(browser_path):
