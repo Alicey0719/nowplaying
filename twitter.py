@@ -109,12 +109,17 @@ class NowPlayingApp:
         self._root.resizable(True, True)
         self._root.configure(fg_color=BG)
 
-        # タイトルバー・Alt+Tab アイコン (Win32 API、タスクバーはexeビルド時のみ有効)
+        # タイトルバー・Alt+Tab アイコン
         try:
-            _ico = Path(getattr(sys, "_MEIPASS", Path(__file__).parent)) / "_icon.ico"
-            if _ico.exists():
-                import ctypes as _ct
+            import ctypes as _ct
+            if getattr(sys, "frozen", False):
+                # exeビルド: PyInstaller が埋め込んだリソース(ID=1)から直接ロード
+                _hinst = _ct.windll.kernel32.GetModuleHandleW(None)
+                _hicon = _ct.windll.user32.LoadImageW(_hinst, 1, 1, 0, 0, 0x40)
+            else:
+                _ico = Path(__file__).parent / "_icon.ico"
                 _hicon = _ct.windll.user32.LoadImageW(None, str(_ico), 1, 0, 0, 0x50)
+            if _hicon:
                 def _apply_icon(hicon=_hicon):
                     child = self._root.winfo_id()
                     hwnd = _ct.windll.user32.GetParent(child) or child
