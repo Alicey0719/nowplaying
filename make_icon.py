@@ -1,26 +1,31 @@
-"""Build-time script: generate _icon.ico for PyInstaller."""
-from PIL import Image, ImageDraw
+"""Build-time script: generate _icon.ico and _icon.png for PyInstaller."""
+from PIL import Image
 
-ACCENT = "#cba6f7"
-BG     = "#1e1e2e"
+PADDING = 0.02  # content area as fraction of final size
 
 
 def make(size: int = 256) -> Image.Image:
-    img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
-    d = ImageDraw.Draw(img)
-    d.ellipse([0, 0, size - 1, size - 1], fill=ACCENT)
-    s = size // 8
-    x = size * 17 // 32
-    d.rectangle([x, s * 2, x + s, s * 5], fill=BG)
-    d.polygon([(x + s, s * 2), (x + s * 4, s * 3), (x + s, s * 4)], fill=BG)
-    cx, cy, r = size * 13 // 32, s * 5, s + 1
-    d.ellipse([cx - r, cy - r + 2, cx + r, cy + r + 2], fill=BG)
-    return img
+    src = Image.open("icon_source.png").convert("RGBA")
+    bbox = src.getbbox()
+    src = src.crop(bbox)
+
+    # supersample: composite at 4x then downscale for smooth edges
+    render = max(size * 4, 256)
+    inner = int(render * (1 - PADDING * 2))
+    tmp = src.copy()
+    tmp.thumbnail((inner, inner), Image.LANCZOS)
+    canvas = Image.new("RGBA", (render, render), (0, 0, 0, 0))
+    x = (render - tmp.width) // 2
+    y = (render - tmp.height) // 2
+    canvas.paste(tmp, (x, y), tmp)
+    if render != size:
+        canvas = canvas.resize((size, size), Image.LANCZOS)
+    return canvas
 
 
 if __name__ == "__main__":
-    base = make(256)
-    sizes = [16, 32, 48, 64, 128, 256]
-    images = [base.resize((s, s), Image.LANCZOS) for s in sizes]
+    sizes = [32, 48, 64, 128, 256]
+    images = [make(s) for s in sizes]
     images[0].save("_icon.ico", format="ICO", append_images=images[1:])
-    print("Generated _icon.ico")
+    make(256).save("_icon.png")
+    print("Generated _icon.ico and _icon.png")

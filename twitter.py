@@ -111,11 +111,12 @@ class NowPlayingApp:
 
         # アイコン
         try:
-            _base = Path(sys.executable).parent if getattr(sys, "frozen", False) else Path(__file__).parent
-            icon_path = _base / "_icon.png"
-            if not icon_path.exists():
-                _make_icon(64).save(icon_path)
-            self._root.iconphoto(True, ImageTk.PhotoImage(Image.open(icon_path)))
+            _res = Path(getattr(sys, "_MEIPASS", Path(__file__).parent))
+            _img = Image.open(_res / "icon_source.png").convert("RGBA")
+            bbox = _img.getbbox()
+            _img = _img.crop(bbox)
+            _img.thumbnail((256, 256), Image.LANCZOS)
+            self._root.iconphoto(True, ImageTk.PhotoImage(_img))
         except Exception:
             pass
 
