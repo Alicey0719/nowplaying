@@ -28,10 +28,26 @@ export default {
     const mime = MIME[ext] ?? "image/jpeg"
     const ua = request.headers.get("User-Agent") ?? ""
 
+    // ?raw=1 は Worker 経由で画像をプロキシ（Twitter の og:image フェッチ用）
+    // catbox.moe が Twitter のクローラーをブロックする場合の対策
+    if (url.searchParams.get("raw") === "1") {
+      const resp = await fetch(imgUrl)
+      return new Response(resp.body, {
+        headers: {
+          "Content-Type": mime,
+          "Cache-Control": "public, max-age=86400",
+        },
+      })
+    }
+
     // 人間のアクセスは画像に直接リダイレクト
     if (!isCrawler(ua)) {
       return Response.redirect(imgUrl, 302)
     }
+
+    // クローラーには Twitter Card HTML を返す
+    // og:image / twitter:image は Worker プロキシ URL を指す
+    const proxyImgUrl = `${url.origin}${url.pathname}?raw=1`
 
     const html = `<!DOCTYPE html>
 <html>
@@ -39,11 +55,11 @@ export default {
   <meta charset="utf-8">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content=" ">
-  <meta name="twitter:image" content="${imgUrl}">
+  <meta name="twitter:image" content="${proxyImgUrl}">
   <meta property="og:type" content="website">
   <meta property="og:title" content=" ">
-  <meta property="og:url" content="${url.toString()}">
-  <meta property="og:image" content="${imgUrl}">
+  <meta property="og:url" content="${url.origin}${url.pathname}">
+  <meta property="og:image" content="${proxyImgUrl}">
   <meta property="og:image:type" content="${mime}">
 </head>
 <body></body>
