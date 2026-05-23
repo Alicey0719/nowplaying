@@ -29,10 +29,10 @@ export default {
   <meta charset="utf-8">
   <meta http-equiv="refresh" content="0;url=${imgUrl}">
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content=" ">
+  <meta name="twitter:title" content="Now Playing">
   <meta name="twitter:image" content="${imgUrl}">
   <meta property="og:type" content="website">
-  <meta property="og:title" content=" ">
+  <meta property="og:title" content="Now Playing">
   <meta property="og:url" content="${url.origin}${url.pathname}">
   <meta property="og:image" content="${imgUrl}">
   <meta property="og:image:type" content="${mime}">
