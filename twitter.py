@@ -356,15 +356,21 @@ class NowPlayingApp:
             info = get_media_info()
         except Exception:
             info = None
-        self._root.after(0, lambda: self._apply(info))
+        photo = None
+        if info and info.artwork:
+            try:
+                photo = _rounded_art(info.artwork)
+            except Exception:
+                pass
+        self._root.after(0, lambda: self._apply(info, photo))
 
-    def _apply(self, info: Optional[MediaInfo]) -> None:
+    def _apply(self, info: Optional[MediaInfo], photo: Optional[ctk.CTkImage] = None) -> None:
         self._fetching = False
         self._btn_refresh.configure(state="normal")
         if info != self._info:
             self._info = info
             self._uploaded_url = None
-            self._render(info)
+            self._render(info, photo)
             # テキスト量に応じてウィンドウ高さを自動調整
             self._root.update_idletasks()
             needed_h = self._root.winfo_reqheight()
@@ -373,12 +379,13 @@ class NowPlayingApp:
         if self._auto_var.get():
             self._after_id = self._root.after(self._REFRESH_MS, self._do_refresh)
 
-    def _render(self, info: Optional[MediaInfo]) -> None:
+    def _render(self, info: Optional[MediaInfo], photo: Optional[ctk.CTkImage] = None) -> None:
         if info is None:
             self._tweet_text = ""
             self._lbl_title.configure(text="再生中の曲が見つかりません", text_color=MUTED)
             self._lbl_artist.configure(text="")
             self._lbl_album.configure(text="")
+            self._art_label._label.configure(image="")
             self._art_label.configure(image=None, text="♪", fg_color=OVERLAY)
             self._set_content_buttons(False)
             return
@@ -392,14 +399,11 @@ class NowPlayingApp:
         self._lbl_artist.configure(text=info.artist)
         self._lbl_album.configure(text=info.album)
 
-        if info.artwork:
-            try:
-                photo = _rounded_art(info.artwork)
-                self._art_label.configure(image=photo, text="", fg_color="transparent")
-                self._art_label._ctk_image = photo  # GC 防止
-            except Exception:
-                self._art_label.configure(image=None, text="♪", fg_color=OVERLAY)
+        if photo:
+            self._art_label.configure(image=photo, text="", fg_color="transparent")
+            self._art_label._ctk_image = photo
         else:
+            self._art_label._label.configure(image="")
             self._art_label.configure(image=None, text="♪", fg_color=OVERLAY)
 
         self._set_content_buttons(True)
