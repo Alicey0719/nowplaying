@@ -14,7 +14,11 @@ class MediaInfo:
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, MediaInfo):
             return False
-        return self.title == other.title and self.artist == other.artist
+        return (
+            self.title == other.title
+            and self.artist == other.artist
+            and bool(self.artwork) == bool(other.artwork)
+        )
 
     def __str__(self) -> str:
         if self.artist:
