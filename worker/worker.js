@@ -36,8 +36,10 @@ export default {
     let pageTitle = "Now Playing"
     let pageDesc = ""
     if (title) {
-      // & を空白に置換（Apple Music の複数アーティスト表記 "A & B" 対策）
-      const cleanArtist = artist.replace(/&/g, " ").replace(/\s+/g, " ").trim()
+      // 二重エンコード対策：先にデコードしてから & を除去
+      let decodedArtist = artist
+      try { decodedArtist = decodeURIComponent(artist.replace(/\+/g, " ")) } catch {}
+      const cleanArtist = decodedArtist.replace(/&/g, " ").replace(/\s+/g, " ").trim()
       const q = cleanArtist ? `${title} ${cleanArtist}` : title
       pageTitle = artist ? `${title} — ${artist}` : title
       pageDesc = "LINE MUSICで聴く"
