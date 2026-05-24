@@ -36,7 +36,9 @@ export default {
     let pageTitle = "Now Playing"
     let pageDesc = ""
     if (title) {
-      const q = artist ? `${title} ${artist}` : title
+      // & を空白に置換（Apple Music の複数アーティスト表記 "A & B" 対策）
+      const cleanArtist = artist.replace(/&/g, " ").replace(/\s+/g, " ").trim()
+      const q = cleanArtist ? `${title} ${cleanArtist}` : title
       pageTitle = artist ? `${title} — ${artist}` : title
       pageDesc = "LINE MUSICで聴く"
       humanRedirect = `https://music.line.me/webapp/search?query=${encodeURIComponent(q)}`
