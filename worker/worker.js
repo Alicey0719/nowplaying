@@ -43,13 +43,12 @@ export default {
     }
 
     // 全リクエストに HTML を返す
-    // 人間は meta refresh で即リダイレクト
-    // クローラーは redirect を無視して card タグを読む
+    // ブラウザは <script> で即リダイレクト（meta refresh と違い X のプレビューが追いかけない）
+    // クローラー/X カード validator は JS を実行しないので card タグだけ読む
     const html = `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8">
-  <meta http-equiv="refresh" content="0;url=${humanRedirect}">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="${esc(pageTitle)}">
   <meta name="twitter:description" content="${esc(pageDesc)}">
@@ -61,7 +60,9 @@ export default {
   <meta property="og:image" content="${imgUrl}">
   <meta property="og:image:type" content="${mime}">
 </head>
-<body></body>
+<body>
+<script>window.location.replace("${humanRedirect}")</script>
+</body>
 </html>`
 
     return new Response(html, {
