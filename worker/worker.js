@@ -18,6 +18,10 @@ export default {
   async fetch(request) {
     const url = new URL(request.url)
 
+    if (url.pathname === "/") {
+      return Response.redirect("https://github.com/Alicey0719/nowplaying", 302)
+    }
+
     const match = url.pathname.match(/^\/catbox_ximg\/([a-zA-Z0-9]+\.(jpe?g|png|gif|webp))$/i)
     if (!match) {
       return new Response("Not Found", { status: 404 })
