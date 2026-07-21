@@ -12,10 +12,15 @@ WATCH_INTERVAL_SECONDS = 5
 
 # -------------------------------------------------------------------
 # 画像アップロード（Twitter Card 用）
-# None      : アップロードしない
-# "catbox"  : catbox.moe を使用（登録不要）
-# "imgur"   : Imgur を使用（IMGUR_CLIENT_ID が必要）
+# None        : アップロードしない
+# "catbox"    : catbox.moe を使用（永続・登録不要）
+# "litterbox" : litterbox.catbox.moe を使用（一時保存・登録不要。catbox 停止時の代替）
+# "imgur"     : Imgur を使用（IMGUR_CLIENT_ID が必要）
 IMAGE_UPLOAD_SERVICE: str | None = "catbox"
+
+# litterbox の保存期間: "1h" / "12h" / "24h" / "72h"
+# （Twitter は投稿時に画像をキャッシュするため、一時保存でもカードは残る）
+LITTERBOX_TIME = "72h"
 
 # Imgur 使用時のみ必要
 IMGUR_CLIENT_ID = ""

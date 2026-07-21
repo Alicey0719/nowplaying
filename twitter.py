@@ -117,6 +117,28 @@ def _rounded_art(data: bytes, size: int = 148) -> ctk.CTkImage:
     return ctk.CTkImage(light_image=img, dark_image=img, size=(w, h))
 
 
+# アップロード用アートワークの最大辺（Twitter カード表示には十分な解像度）
+_UPLOAD_MAX_SIZE = 500
+
+
+def _resize_for_upload(data: bytes, size: int = _UPLOAD_MAX_SIZE, quality: int = 85) -> bytes:
+    """アップロード用にアートワークを縮小・再エンコードして軽量化する。
+
+    オリジナル（数百KB〜数MB）をそのまま送ると転送が重く、断続失敗も起きやすい。
+    thumbnail は縦横比を保ち縮小のみ（拡大しない）。失敗時は元データを返す。
+    """
+    try:
+        img = Image.open(BytesIO(data))
+        img.thumbnail((size, size), Image.LANCZOS)
+        buf = BytesIO()
+        img.convert("RGB").save(buf, "JPEG", quality=quality, optimize=True)
+        out = buf.getvalue()
+        # 縮小後の方が大きくなる異常時は元を使う
+        return out if out and len(out) < len(data) else data
+    except Exception:
+        return data
+
+
 class NowPlayingApp:
     _REFRESH_MS = config.WATCH_INTERVAL_SECONDS * 1000
 
@@ -281,15 +303,18 @@ class NowPlayingApp:
     def _open_browser(self) -> None:
         if not self._tweet_text:
             return
-        if config.IMAGE_UPLOAD_SERVICE and self._info and self._info.artwork and self._uploaded_url is None:
+        service = self._settings.get("upload_service")
+        if service and self._info and self._info.artwork and self._uploaded_url is None:
             self._set_status("アップロード中...", YELLOW)
             self._set_content_buttons(False)
             artwork = self._info.artwork
             def do_upload() -> None:
                 try:
-                    url = upload_image(artwork)
-                except Exception as e:
-                    self._root.after(0, lambda: self._on_upload_done(None, str(e)))
+                    data = _resize_for_upload(artwork)
+                    url = upload_image(data, service)
+                except Exception as exc:
+                    msg = str(exc)
+                    self._root.after(0, lambda: self._on_upload_done(None, msg))
                     return
                 self._root.after(0, lambda: self._on_upload_done(url, None))
             threading.Thread(target=do_upload, daemon=True).start()
@@ -297,12 +322,21 @@ class NowPlayingApp:
             self._launch_browser()
 
     def _on_upload_done(self, url: Optional[str], error: Optional[str]) -> None:
-        if error:
-            self._set_status(f"アップロード失敗: {error}", PINK)
-        else:
-            self._uploaded_url = url
         self._set_content_buttons(True)
+        if error:
+            # 自動リトライ後も失敗 → 明示し、投稿するかユーザーに選ばせる
+            self._set_status(f"画像アップロード失敗: {error}", PINK)
+            self._prompt_upload_failed()
+            return
+        self._uploaded_url = url
         self._root.after(1000, self._launch_browser)
+
+    def _prompt_upload_failed(self) -> None:
+        UploadFailedDialog(
+            self._root,
+            on_retry=self._open_browser,        # 再アップロード（_uploaded_url は None のまま）
+            on_post_without=self._launch_browser,  # 画像なしでテキスト投稿
+        )
 
     def _launch_browser(self) -> None:
         import subprocess, os
@@ -423,6 +457,8 @@ class NowPlayingApp:
 
     def _on_settings_saved(self, new_settings: dict) -> None:
         self._settings = new_settings
+        # アップロード先が変わった可能性があるのでキャッシュ済み URL を破棄
+        self._uploaded_url = None
         # 設定変更後に現在の曲テキストを即再生成
         if self._info:
             self._tweet_text = _format_tweet(
@@ -434,6 +470,60 @@ class NowPlayingApp:
     def _set_status(self, msg: str, color: str = GREEN) -> None:
         self._status_var.set(msg)
         self._lbl_status.configure(text_color=color)
+
+
+class UploadFailedDialog(ctk.CTkToplevel):
+    """画像アップロード失敗時、投稿方法をユーザーに選ばせるモーダル。"""
+
+    def __init__(self, parent, on_retry, on_post_without) -> None:
+        super().__init__(parent)
+        self.title("画像アップロード失敗")
+        self.configure(fg_color=BG)
+        self.resizable(False, False)
+        self.grab_set()
+        self._on_retry = on_retry
+        self._on_post_without = on_post_without
+
+        outer = ctk.CTkFrame(self, fg_color="transparent")
+        outer.pack(fill="both", expand=True, padx=20, pady=16)
+
+        ctk.CTkLabel(
+            outer,
+            text="画像のアップロードに失敗しました。\nどうしますか？",
+            justify="left", anchor="w",
+            font=ctk.CTkFont(FONT, 12), text_color=TEXT,
+        ).pack(fill="x")
+
+        btn_row = ctk.CTkFrame(outer, fg_color="transparent")
+        btn_row.pack(fill="x", pady=(16, 0))
+
+        ctk.CTkButton(
+            btn_row, text="キャンセル", width=90, height=30,
+            fg_color=SURFACE, hover_color=OVERLAY, text_color=SUBTEXT,
+            font=ctk.CTkFont(FONT, 11), corner_radius=8,
+            command=self.destroy,
+        ).pack(side="right", padx=(6, 0))
+
+        ctk.CTkButton(
+            btn_row, text="画像なしで投稿", width=110, height=30,
+            fg_color=SURFACE, hover_color=OVERLAY, text_color=TEXT,
+            font=ctk.CTkFont(FONT, 11), corner_radius=8,
+            command=lambda: self._choose(self._on_post_without),
+        ).pack(side="right", padx=(6, 0))
+
+        ctk.CTkButton(
+            btn_row, text="再試行", width=90, height=30,
+            fg_color=ACCENT, hover_color="#b48df0", text_color=BG,
+            font=ctk.CTkFont(FONT, 11, "bold"), corner_radius=8,
+            command=lambda: self._choose(self._on_retry),
+        ).pack(side="right")
+
+        self.update_idletasks()
+        self.geometry(f"{self.winfo_reqwidth()}x{self.winfo_reqheight()}")
+
+    def _choose(self, callback) -> None:
+        self.destroy()
+        callback()
 
 
 class SettingsWindow(ctk.CTkToplevel):
@@ -487,6 +577,28 @@ class SettingsWindow(ctk.CTkToplevel):
             dropdown_hover_color=OVERLAY, width=380, height=32,
         ).pack(fill="x", pady=(4, 0))
 
+        # 画像アップロード先
+        section("画像アップロード")
+        self._upload_map: dict[str, Optional[str]] = {
+            "catbox（永続）": "catbox",
+            "litterbox（一時・72h）": "litterbox",
+            "アップロードしない": None,
+        }
+        current_service = current.get("upload_service", "catbox")
+        current_up_label = next(
+            (k for k, v in self._upload_map.items() if v == current_service),
+            "catbox（永続）",
+        )
+        self._upload_var = ctk.StringVar(value=current_up_label)
+        ctk.CTkOptionMenu(
+            outer, values=list(self._upload_map.keys()),
+            variable=self._upload_var,
+            fg_color=SURFACE, button_color=OVERLAY, button_hover_color=MUTED,
+            text_color=TEXT, font=ctk.CTkFont(FONT, 12),
+            dropdown_fg_color=SURFACE, dropdown_text_color=TEXT,
+            dropdown_hover_color=OVERLAY, width=380, height=32,
+        ).pack(fill="x", pady=(4, 0))
+
         hint("変数: {title}  {artist}  {album}")
         section("アーティストあり")
         self._tmpl = entry(current["tweet_template"])
@@ -527,6 +639,7 @@ class SettingsWindow(ctk.CTkToplevel):
             "tweet_template": self._tmpl.get().strip() or _settings_mod.DEFAULTS["tweet_template"],
             "tweet_template_no_artist": self._tmpl_no.get().strip() or _settings_mod.DEFAULTS["tweet_template_no_artist"],
             "browser_path": self._browser_map.get(self._browser_var.get(), ""),
+            "upload_service": self._upload_map.get(self._upload_var.get(), "catbox"),
         }
         _settings_mod.save(new)
         self._on_save(new)

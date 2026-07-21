@@ -22,14 +22,23 @@ export default {
       return Response.redirect("https://github.com/Alicey0719/nowplaying", 302)
     }
 
-    const match = url.pathname.match(/^\/catbox_ximg\/([a-zA-Z0-9]+\.(jpe?g|png|gif|webp))$/i)
-    if (!match) {
+    const catboxMatch = url.pathname.match(/^\/catbox_ximg\/([a-zA-Z0-9]+\.(jpe?g|png|gif|webp))$/i)
+    const litterMatch = url.pathname.match(/^\/litter_ximg\/([a-zA-Z0-9]+\.(jpe?g|png|gif|webp))$/i)
+
+    let match, host
+    if (catboxMatch) {
+      match = catboxMatch
+      host = "files.catbox.moe"
+    } else if (litterMatch) {
+      match = litterMatch
+      host = "litter.catbox.moe"
+    } else {
       return new Response("Not Found", { status: 404 })
     }
 
     const file = match[1]
     const ext = match[2].replace("jpeg", "jpg").toLowerCase()
-    const imgUrl = `https://files.catbox.moe/${file}`
+    const imgUrl = `https://${host}/${file}`
     const mime = MIME[ext] ?? "image/jpeg"
 
     const title = url.searchParams.get("title") ?? ""

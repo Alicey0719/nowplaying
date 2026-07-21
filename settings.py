@@ -22,6 +22,8 @@ DEFAULTS: dict = {
     "tweet_template": config.TWEET_TEMPLATE,
     "tweet_template_no_artist": config.TWEET_TEMPLATE_NO_ARTIST,
     "browser_path": "",
+    # 画像アップロード先: "catbox" / "litterbox" / None（config.py の既定値を初期値に）
+    "upload_service": config.IMAGE_UPLOAD_SERVICE,
 }
 
 
